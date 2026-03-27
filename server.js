@@ -10,6 +10,26 @@ app.use(express.static('public'));
 const PORT = process.env.PORT || 3000;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
+// ── SSE（リアルタイム同期） ─────────────────────────────
+const clients = new Set();
+
+app.get('/api/events', (req, res) => {
+  res.set({
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+  });
+  res.flushHeaders();
+  clients.add(res);
+  req.on('close', () => clients.delete(res));
+});
+
+function broadcast(event, data) {
+  for (const client of clients) {
+    client.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  }
+}
+
 // ── 原稿 CRUD ──────────────────────────────────────
 
 // 全件取得
@@ -23,12 +43,14 @@ app.post('/api/scripts', (req, res) => {
   if (!s.id || !s.title) return res.status(400).json({ error: 'id and title required' });
   upsert({ id: s.id, title: s.title, body: s.body || '', updatedAt: s.updatedAt || Date.now() });
   res.json({ ok: true });
+  broadcast('update', { id: s.id, title: s.title, body: s.body || '', updatedAt: s.updatedAt || Date.now() });
 });
 
 // 削除
 app.delete('/api/scripts/:id', (req, res) => {
   remove(req.params.id);
   res.json({ ok: true });
+  broadcast('delete', { id: req.params.id });
 });
 
 // ── Anthropic API プロキシ ──────────────────────────

@@ -623,7 +623,40 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){ document.getElementById('newOverlay').classList.add('hidden'); document.getElementById('importOverlay').classList.add('hidden'); }
 });
 
-(async()=>{ await load(); renderList(); })();
+// ── SSE（リアルタイム同期） ──
+function connectSSE() {
+  const es = new EventSource('/api/events');
+
+  es.addEventListener('update', (e) => {
+    const updated = JSON.parse(e.data);
+    const idx = scripts.findIndex(x => x.id === updated.id);
+    if (idx >= 0) {
+      scripts[idx] = updated;
+    } else {
+      scripts.unshift(updated);
+    }
+    scripts.sort((a, b) => b.updatedAt - a.updatedAt);
+    renderList();
+    if (currentId === updated.id) {
+      document.getElementById('viewTitle').value = updated.title;
+      document.getElementById('viewRaw').value = updated.body;
+    }
+  });
+
+  es.addEventListener('delete', (e) => {
+    const { id } = JSON.parse(e.data);
+    scripts = scripts.filter(x => x.id !== id);
+    renderList();
+    if (currentId === id) backToList();
+  });
+
+  es.onerror = () => {
+    es.close();
+    setTimeout(connectSSE, 3000);
+  };
+}
+
+(async()=>{ await load(); renderList(); connectSSE(); })();
 </script>
 </body>
 </html>
