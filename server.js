@@ -40,7 +40,8 @@ app.get('/api/scripts', (req, res) => {
 // 保存（作成・更新どちらも）
 app.post('/api/scripts', (req, res) => {
   const s = req.body;
-  if (!s.id || !s.title) return res.status(400).json({ error: 'id and title required' });
+  if (!s.id) return res.status(400).json({ error: 'id required' });
+  if (!s.title) s.title = '（無題）';
   upsert({ id: s.id, title: s.title, body: s.body || '', updatedAt: s.updatedAt || Date.now() });
   res.json({ ok: true });
   broadcast('update', { id: s.id, title: s.title, body: s.body || '', updatedAt: s.updatedAt || Date.now() });

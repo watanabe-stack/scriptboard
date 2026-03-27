@@ -477,7 +477,9 @@ async function createNew() {
 async function delCurrent() {
   if (!currentId) return;
   const s = scripts.find(x => x.id === currentId);
-  if (!confirm(`「${s?.title || '原稿'}」を削除しますか？`)) return;
+  const title = s?.title || '原稿';
+  if (!confirm(`「${title}」を削除しますか？\n\n※ この操作は元に戻せません`)) return;
+  if (!confirm(`本当に「${title}」を削除してよろしいですか？（最終確認）`)) return;
   await deleteFromServer(currentId);
   scripts = scripts.filter(x => x.id !== currentId);
   backToList();
