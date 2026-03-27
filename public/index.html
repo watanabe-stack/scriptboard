@@ -173,6 +173,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 <div class="topbar">
   <div class="logo">SCRIPT<em>BOARD</em></div>
   <div class="spacer"></div>
+  <button class="btn accent" onclick="saveAllNow()">&#x1F4BE; 保存</button>
   <button class="btn" onclick="openImport()">&#x2B07; インポート</button>
   <button class="btn solid" onclick="openNew()">&#xFF0B; 新規作成</button>
 </div>
@@ -341,6 +342,13 @@ async function saveAll() {
 
 async function deleteFromServer(id) {
   await fetch(`/api/scripts/${id}`, { method: 'DELETE' });
+}
+
+async function saveAllNow() {
+  try {
+    await saveAll();
+    showToast('✓ すべて保存しました');
+  } catch { showToast('⚠ 保存に失敗しました'); }
 }
 
 function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(save, 800); }
