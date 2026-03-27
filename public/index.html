@@ -125,12 +125,23 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 .kw-red{color:var(--red);font-weight:700;background:var(--red-bg);padding:1px 4px;border-radius:3px;font-size:0.95em}
 .kw-blue{color:var(--blue);font-weight:700;background:var(--blue-bg);padding:1px 4px;border-radius:3px;font-size:0.95em}
 
-/* ── Raw textarea: always visible, fills full area ── */
+/* ── Editor wrapper with link overlay ── */
+.editor-wrap{position:relative;flex:1;min-height:100%}
 .sv-raw{
   display:block;width:100%;height:100%;min-height:100%;
   border:none;outline:none;background:transparent;
   line-height:1.75;color:var(--text);resize:none;
-  box-sizing:border-box;
+  box-sizing:border-box;position:relative;z-index:1;
+}
+.link-overlay{
+  position:absolute;top:0;left:0;width:100%;height:100%;
+  pointer-events:none;white-space:pre-wrap;word-break:break-word;
+  line-height:1.75;box-sizing:border-box;z-index:2;
+  color:transparent;
+}
+.link-overlay a{
+  pointer-events:auto;color:var(--blue);text-decoration:underline;
+  cursor:pointer;position:relative;
 }
 
 /* ── Modals ── */
@@ -215,7 +226,10 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 
       <!-- Body: scroll wrapper -->
       <div class="sv-body" id="svBody">
-        <textarea class="sv-raw" id="viewRaw" placeholder="ここに原稿を直接入力・編集できます" oninput="onRawChange()"></textarea>
+        <div class="editor-wrap">
+          <div class="link-overlay" id="linkOverlay"></div>
+          <textarea class="sv-raw" id="viewRaw" placeholder="ここに原稿を直接入力・編集できます" oninput="onRawChange()" onscroll="syncScroll()"></textarea>
+        </div>
       </div>
     </div>
   </div>
@@ -380,6 +394,7 @@ function selectScript(id) {
   raw.style.fontWeight = '700';
   raw.style.lineHeight = '1.75';
   renderList();
+  updateLinkOverlay();
 }
 
 function backToList() {
@@ -394,6 +409,33 @@ function onRawChange() {
   s.body = document.getElementById('viewRaw').value;
   s.updatedAt = Date.now();
   scheduleSave(); renderList();
+  updateLinkOverlay();
+}
+
+// ── Link overlay ──
+const urlRegex = /(https?:\/\/[^\s\u3000]+)/g;
+
+function updateLinkOverlay() {
+  const raw = document.getElementById('viewRaw');
+  const overlay = document.getElementById('linkOverlay');
+  const text = raw.value;
+  // Mirror textarea styles to overlay
+  const cs = getComputedStyle(raw);
+  overlay.style.fontSize = cs.fontSize;
+  overlay.style.fontFamily = cs.fontFamily;
+  overlay.style.fontWeight = cs.fontWeight;
+  overlay.style.lineHeight = cs.lineHeight;
+  overlay.style.padding = cs.padding;
+  // Build overlay HTML: same text but URLs wrapped in <a>
+  overlay.innerHTML = esc(text).replace(/(https?:\/\/[^\s\u3000&]+)/g, '<a href="$1" target="_blank" rel="noopener" onclick="event.stopPropagation()">$1</a>');
+  syncScroll();
+}
+
+function syncScroll() {
+  const raw = document.getElementById('viewRaw');
+  const overlay = document.getElementById('linkOverlay');
+  overlay.scrollTop = raw.scrollTop;
+  overlay.scrollLeft = raw.scrollLeft;
 }
 
 // ── Font ──
@@ -402,6 +444,7 @@ function changeFontSize(d) {
   document.getElementById('fcVal').textContent = fontSize+'px';
   const raw = document.getElementById('viewRaw');
   raw.style.fontSize = fontSize+'px';
+  updateLinkOverlay();
 }
 
 // ── Title ──
@@ -648,6 +691,7 @@ function connectSSE() {
     if (currentId === updated.id) {
       document.getElementById('viewTitle').value = updated.title;
       document.getElementById('viewRaw').value = updated.body;
+      updateLinkOverlay();
     }
   });
 
